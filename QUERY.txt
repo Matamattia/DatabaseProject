@@ -1,0 +1,104 @@
+--QUERY
+--7.1
+SELECT m.type_media, SUM(p_p.visualizzazioni) AS total_views
+FROM media m
+JOIN post p ON m.url = p.media
+JOIN panoramica_post p_p ON p.id = p_p.post
+GROUP BY m.type_media;
+
+--7.2
+SELECT u.nome, u.cognome, (
+    SELECT SUM(p_p.visualizzazioni)
+    FROM post p
+    JOIN panoramica_post p_p ON p.id = p_p.post
+    WHERE p.utente = u.id
+) AS total_views
+FROM utente_linkedin u
+WHERE EXISTS (
+    SELECT *
+    FROM post p
+    JOIN media m on (p.media = m.url)
+    WHERE p.utente = u.id and m.type_media = 'immagine'
+)
+ORDER BY u.cognome,u.nome;
+
+--7.3
+
+SELECT ul.nome, ul.cognome
+FROM utente_linkedin ul
+WHERE ul.id IN (
+  SELECT p.utente
+  FROM post p
+  INNER JOIN caratterizzato c ON p.id = c.post
+  WHERE c.hashtag = '#technology'  
+  INTERSECT
+
+  SELECT p.utente
+  FROM post p
+  INNER JOIN tag t ON p.id = t.post
+  INNER JOIN link_post lp ON t.link_nel_post = lp.link_p
+  WHERE lp.nome like 'Articolo interessante'
+ 
+)
+AND ul.num_follower > 10000;
+
+
+--7.4
+
+SELECT u.nome, u.cognome
+FROM utente_linkedin u
+WHERE NOT EXISTS (
+    SELECT *
+    FROM post p join panoramica_post p_p on (p.id = p_p.post)
+    WHERE p.utente = u.id AND p_p.reazioni <= 500
+);
+
+
+--7.4.1
+SELECT u.nome, u.cognome
+FROM utente_linkedin u
+WHERE NOT EXISTS (
+    SELECT *
+    FROM post p join panoramica_post p_p on (p.id = p_p.post)
+    WHERE p.utente = u.id AND p_p.reazioni <= 500
+);
+
+
+--7.4.2
+
+SELECT p.id, p.contenuto_post, pp.reazioni, pp.commenti, (pp.reazioni + pp.commenti) AS somma
+FROM post p
+JOIN panoramica_post pp ON p.id = pp.post
+WHERE (pp.reazioni + pp.commenti) = (
+    SELECT MAX(reazioni + commenti)
+    FROM panoramica_post
+) 
+
+--7.4.3
+SELECT u.id,u.nome, u.cognome
+FROM utente_linkedin u
+EXCEPT (
+    SELECT u.id,u.nome, u.cognome
+    FROM utente_linkedin u
+    JOIN post p ON u.id = p.utente
+    JOIN panoramica_post p_p ON p.id = p_p.post
+    WHERE p_p.reazioni <= 500
+);
+
+--VISTE
+CREATE VIEW utenti_post_hashtag AS
+SELECT ul.id AS utente_id, ul.nome, ul.cognome, COUNT(p.id) AS num_post, SUM(p.num_hashtag) AS num_hashtag_totali
+FROM utente_linkedin ul
+INNER JOIN post p ON ul.id = p.utente
+GROUP BY ul.id, ul.nome, ul.cognome;
+
+--8.1.1
+
+SELECT utente_id, nome, cognome,num_hashtag_totali
+FROM utenti_post_hashtag
+WHERE num_post >5 AND num_hashtag_totali > (
+    SELECT AVG(num_hashtag_totali)
+    FROM utenti_post_hashtag
+
+
+

@@ -1,0 +1,113 @@
+--trigger di popolamento
+CREATE OR REPLACE FUNCTION AtLeastONE() returns trigger as $$
+BEGIN
+if (exists (select nome from hashtag
+where nome not in (select hashtag from caratterizzato))) then
+RAISE EXCEPTION 'ERRORE 1';
+end if;
+return NEW;
+END $$ LANGUAGE plpgsql;
+
+
+create trigger AtLeastONE
+after insert on hashtag
+for each row execute procedure AtLeastONE();
+
+create trigger AtLeastONE
+after delete on caratterizzato
+for each row execute procedure AtLeastONE();
+
+--trigger per vincoli aziendali
+
+--Trigger
+CREATE OR REPLACE FUNCTION lowest_views_post()
+RETURNS TRIGGER AS $$
+DECLARE
+post_count integer;
+lowest_views_post1 integer :=-1;
+BEGIN
+	
+	
+    IF (NEW IS NOT NULL) THEN
+	SELECT COUNT(*) INTO post_count
+        FROM post
+        WHERE utente = NEW.utente;
+        
+        IF post_count > 10 THEN
+
+			
+            -- Notifica il post con il numero di visualizzazioni più basso
+            RAISE NOTICE'ATTENZIONE:L’ utente id:% ha raggiunto 10 post',NEW.utente;             
+        END IF;
+    END IF;
+    IF (OLD IS NOT NULL) THEN
+	SELECT COUNT(*) INTO post_count
+        FROM post
+        WHERE utente = OLD.utente;
+		IF (post_count = 1) THEN
+			RAISE NOTICE'ATTENZIONE: numero post uguale ad uno per tale influencer' ;	
+		ELSIF (post_count = 0) THEN
+			RAISE EXCEPTION'influencer non può avere 0 post';
+		END IF;
+	END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+
+CREATE TRIGGER check_influencer_post_count
+AFTER INSERT OR DELETE ON post
+FOR EACH ROW
+EXECUTE FUNCTION lowest_views_post();
+
+
+--9.2.2
+CREATE OR REPLACE FUNCTION update_panoramica_voti() RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.voti IS NOT NULL THEN
+    -- Controlla se il media associato al post non è un "sondaggio"
+    IF (SELECT type_media FROM media WHERE url = (SELECT media FROM post WHERE id = NEW.post)) <> 'sondaggio' THEN
+      RAISE EXCEPTION 'Se il post non ha come media un sondaggio, i voti devono essere NULL.';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_update_panoramica_voti
+AFTER INSERT OR UPDATE ON panoramica_post
+FOR EACH ROW
+EXECUTE FUNCTION update_panoramica_voti();
+
+--9.2.3
+CREATE OR REPLACE FUNCTION caratterizzato() RETURNS TRIGGER AS $$
+begin
+if (new is not null) then--insert o update
+	update post set num_hashtag = 1 where id = new.post;
+end if;
+if (old is not null) then
+	update post set num_hashtag = 1 where id = old.post;
+end if;
+return null;
+End;$$ language plpgsql;
+
+create trigger caratterizzato
+after insert or delete or update of hashtag on caratterizzato
+for each row
+execute procedure caratterizzato();
+
+--trigger dato ridondante parte 2
+CREATE OR REPLACE FUNCTION protegginumerohashtag() RETURNS TRIGGER AS $$
+begin
+	select count(*) into new.num_hashtag
+	from caratterizzato where post = new.id;
+	return new;
+End;$$ LANGUAGE plpgsql;
+
+create trigger protegginumerohashtag
+before insert or update of num_hashtag on post 
+for each row 
+execute procedure protegginumerohashtag();
+
