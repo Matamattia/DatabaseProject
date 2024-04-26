@@ -24,11 +24,3 @@ The database structures data from the "LinkedIn Influencers’ Data" which is co
 2. Clone this repository to your local environment.
 3. Run the SQL creation and population scripts located in the `sql_scripts` directory to set up the database schema and populate it with initial data.
 
-## Documentation
-- **Data Dictionary**: Detailed descriptions of each table and relationship in the database are available in the `docs` folder.
-- **Schema Diagrams**: ER diagrams and restructured schemas can be found in the `diagrams` folder, illustrating the database design and relationships.
-
-## Usage
-- Utilize provided SQL queries to perform data insertion, updates, and complex analytics.
-- Example queries for common data retrieval scenarios are included in the `examples` directory.
-
